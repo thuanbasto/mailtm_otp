@@ -4,3 +4,5 @@
 - Copy OTP với thông báo toast
 - Quản lý nhiều tài khoản cùng lúc
 - Giao diện responsive
+
+Link: https://thuanbasto.github.io/mailtm_otp/
