@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Thêm các thư viện cần thiết -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/uuid@8.3.2/dist/umd/uuid.min.js"></script>
+    <style>
+        /* Reset CSS */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background: #f0f2f5;
+            color: #1c1e21;
+            line-height: 1.6;
+        }
+
+        .container {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h2 {
+            color: #1877f2;
+            margin-bottom: 1.5rem;
+            font-size: 2rem;
+            text-align: center;
+        }
+
+        button {
+            background: #1877f2;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            margin: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        button:hover {
+            background: #166fe5;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        #accountInput {
+            width: 100%;
+            height: 120px;
+            padding: 1rem;
+            border: 2px solid #dddfe2;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-family: monospace;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }
+
+        #accountInput:focus {
+            border-color: #1877f2;
+            outline: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #dddfe2;
+        }
+
+        th {
+            background: #f5f6f7;
+            font-weight: 600;
+            color: #606770;
+        }
+
+        tr:hover {
+            background: #f5f6f7;
+        }
+
+        .status-icon {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            vertical-align: middle;
+        }
+
+        .copy-otp {
+            color: #1877f2;
+            cursor: pointer;
+            font-weight: 500;
+            transition: opacity 0.3s ease;
+        }
+
+        .copy-otp:hover {
+            opacity: 0.8;
+        }
+
+        #toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: #1877f2;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            visibility: hidden;
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateY(0);
+            visibility: visible;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            button {
+                width: 100%;
+                justify-content: center;
+                margin: 0.5rem 0;
+            }
+
+            th, td {
+                min-width: 120px;
+                padding: 0.8rem;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .password-cell {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .toggle-password {
+                margin-top: 0.3rem;
+            }
+        }
+
+        /* Thêm style cho input domain */
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin: 1rem 0;
+        }
+        
+        .domain-input {
+            flex: 1;
+            padding: 0.8rem;
+            border: 2px solid #dddfe2;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .domain-input:focus {
+            border-color: #1877f2;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>MailTM Bulk OTP Checker</h2>
+        <div class="input-group">
+            <input 
+                type="text" 
+                id="domainInput" 
+                placeholder="Nhập domain (mặc định: edny.net)"
+                class="domain-input"
+            >
+            <button onclick="createRandomAccount()">Tạo tài khoản mới</button>
+        </div>
+        <button onclick="importAccounts()">Import Accounts</button>
+        <button onclick="clearTable()">Xóa bảng</button>
+        <textarea id="accountInput" placeholder="Nhập danh sách tài khoản (mỗi dòng 1 tài khoản theo định dạng email|password)"></textarea>
+        <table id="accountTable">
+            <thead>
+                <tr>
+                    <th>STT</th>
+                    <th>Username</th>
+                    <th>Password</th>
+                    <th>Trạng thái</th>
+                    <th>OTP</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Thêm div toast notification -->
+    <div id="toast"></div>
+
+<script>
+class MailTM {
+    constructor() {
+        this.baseURL = "https://api.mail.tm";
+        this.axiosInstance = axios.create();
+        this.accountId = null;
+        this.token = null;
+        this.password = null;
+    }
+
+    async createAccount() {
+        try {
+            const domain = await this._getRandomDomain();
+            const username = `${uuid.v4().substring(0,8)}@${domain}`;
+            const password = uuid.v4().substring(0,10);
+            
+            console.log(`Username: ${username}, Password: ${password}`);
+            
+            const response = await this.axiosInstance.post(
+                `${this.baseURL}/accounts`,
+                { address: username, password: password }
+            );
+
+            if (response.status === 201) {
+                this.accountId = username;
+                this.password = password;
+                const loginSuccess = await this.login(username, password);
+                return loginSuccess 
+                    ? { email: username, password: password }
+                    : { error: "Tạo tài khoản thành công nhưng đăng nhập thất bại" };
+            }
+
+            const errorMsg = response.data?.detail || 'Unknown error';
+            if (response.status === 400) {
+                return { error: `Sai định dạng email: ${errorMsg}` };
+            } else if (response.status === 422) {
+                return { error: `Domain ${domain} không khả dụng, vui lòng thử domain khác` };
+            }
+            return { error: `Lỗi ${response.status}: ${errorMsg}` };
+
+        } catch (error) {
+            return { 
+                error: `Lỗi kết nối: ${error.response?.data?.detail || error.message}`
+            };
+        }
+    }
+
+    async login(email, password) {
+        this.accountId = email;
+        this.password = password;
+        
+        try {
+            const response = await this.axiosInstance.post(
+                `${this.baseURL}/token`,
+                { address: email, password: password }
+            );
+            
+            if (response.status === 200) {
+                this.token = response.data.token;
+                this.axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${this.token}`;
+                return true;
+            }
+            return false;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    async getOTP(timeout = 60) {
+        if (!this.token) throw new Error("Vui lòng đăng nhập trước!");
+        
+        const startTime = Date.now();
+        const regex = /\b\d{6}\b/;
+        
+        while (Date.now() - startTime < timeout * 1000) {
+            try {
+                const response = await this.axiosInstance.get(`${this.baseURL}/messages`);
+                const messages = response.data['hydra:member'];
+                
+                if (messages.length > 0) {
+                    const latestEmail = messages[0];
+                    const emailRes = await this.axiosInstance.get(
+                        `${this.baseURL}/messages/${latestEmail.id}`
+                    );
+                    
+                    const content = emailRes.data.text || emailRes.data.html || '';
+                    const otpMatch = content.match(regex);
+                    if (otpMatch) return otpMatch[0];
+                }
+            } catch (error) {
+                console.log(`Lỗi khi lấy email: ${error.message}`);
+            }
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+        return null;
+    }
+
+    async _getRandomDomain() {
+        const customDomain = document.getElementById('domainInput').value.trim();
+        if (customDomain) return customDomain;
+        
+        // Domain mặc định nếu không nhập
+        const defaultDomains = ["edny.net"];
+        return defaultDomains[Math.floor(Math.random() * defaultDomains.length)];
+    }
+}
+
+let mail = new MailTM();
+
+// Hiển thị kết quả ra màn hình
+function showResult(text) {
+    document.getElementById('result').textContent += text + '\n';
+}
+
+// Xử lý import tài khoản
+function importAccounts() {
+    const input = document.getElementById('accountInput').value;
+    const accounts = input.split('\n').filter(line => line.trim() !== '');
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+
+    accounts.forEach((account, index) => {
+        const [email, password] = account.split('|');
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${email}</td>
+            <td>${password}</td>
+            <td><span class="status">🟡 Chưa thử</span></td>
+            <td class="otp-cell">-</td>
+            <td>
+                <button onclick="getOTPForAccount(this, '${email}', '${password}')">Lấy OTP</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Xử lý lấy OTP cho từng account
+async function getOTPForAccount(button, email, password) {
+    const row = button.closest('tr');
+    const statusCell = row.querySelector('.status');
+    const otpCell = row.querySelector('.otp-cell');
+    const mail = new MailTM();
+
+    try {
+        statusCell.innerHTML = '🔄 Đang đăng nhập...';
+        const loginSuccess = await mail.login(email, password);
+        
+        if (!loginSuccess) {
+            statusCell.innerHTML = '🔴 Đăng nhập thất bại';
+            return;
+        }
+
+        statusCell.innerHTML = '🔄 Đang lấy OTP...';
+        button.disabled = true;
+        
+        const otp = await mail.getOTP(180);
+        if (otp) {
+            otpCell.innerHTML = `
+                <span class="copy-otp" onclick="copyToClipboard('${otp}')">${otp}</span>
+                <span style="color:green">✅</span>
+            `;
+            statusCell.innerHTML = '🟢 Thành công';
+        } else {
+            otpCell.innerHTML = '<span style="color:red">❌ Không tìm thấy</span>';
+            statusCell.innerHTML = '🔴 Không có OTP';
+        }
+    } catch (e) {
+        otpCell.innerHTML = `<span style="color:red">⛔ Lỗi: ${e.message}</span>`;
+        statusCell.innerHTML = '🔴 Lỗi hệ thống';
+    } finally {
+        button.disabled = false;
+    }
+}
+
+// Sửa hàm copyToClipboard
+function copyToClipboard(text) {
+    const toast = document.getElementById('toast');
+    navigator.clipboard.writeText(text).then(() => {
+        toast.textContent = `📋 Đã copy: ${text}`;
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2000);
+    });
+}
+
+// Xóa bảng
+function clearTable() {
+    document.getElementById('tableBody').innerHTML = '';
+    document.getElementById('accountInput').value = '';
+}
+
+// Thêm hàm tạo tài khoản ngẫu nhiên
+async function createRandomAccount() {
+    const domainInput = document.getElementById('domainInput').value.trim();
+    if (domainInput) {
+        if (!/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(domainInput)) {
+            showToast('Domain không hợp lệ!', 'error');
+            return;
+        }
+    }
+
+    const mail = new MailTM();
+    const account = await mail.createAccount();
+    
+    if(account.error) {
+        showToast(`Lỗi tạo tài khoản: ${account.error}`, 'error');
+        return;
+    }
+    
+    // Thêm vào textarea và import
+    const textarea = document.getElementById('accountInput');
+    textarea.value += `${account.email}|${account.password}\n`;
+    importAccounts();
+    showToast('Đã tạo tài khoản mới!', 'success');
+}
+
+// Sửa hàm showToast để hỗ trợ nhiều loại thông báo
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = ''; // Reset class
+    toast.classList.add(type, 'show');
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 2000);
+}
+
+</script>
+</body>
+</html>
